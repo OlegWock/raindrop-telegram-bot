@@ -18,6 +18,6 @@ services:
     image: mongo:4.4
     restart: unless-stopped
     env_file:
-      - .env.dev
+      - .env
     volumes:
       - ./mongo_volume:/data/db
