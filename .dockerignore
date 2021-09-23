@@ -1,0 +1,13 @@
+__pycache__
+.venv
+.idea
+
+logs/*
+mongo_volume
+
+
+.env*
+.git
+.gitignore
+*.md
+docker-compose.yml

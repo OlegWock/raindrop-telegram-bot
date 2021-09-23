@@ -1,0 +1,23 @@
+version: "3.3"
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      - "mongo"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - RUN_IN_DOCKER=true
+
+  mongo:
+    hostname: 'mongo'
+    image: mongo:4.4
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    volumes:
+      - ./mongo_volume:/data/db
