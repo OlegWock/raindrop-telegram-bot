@@ -4,6 +4,7 @@ __pycache__
 
 logs/*
 mongo_volume
+bot_server_volume
 
 
 .env*

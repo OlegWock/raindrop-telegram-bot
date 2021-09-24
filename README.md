@@ -33,6 +33,7 @@ Sure. That's main point of making this bot open source. I made code as much univ
 1. Create new telegram bot, enable inline mode.
 1. Create `.env` file and put your credentials (including bot token from previous step) there. You can find example in `.env.example`.
 1. Install `docker` and `docker-compose` if not already.
+1. Install [Telegram Bot server](https://github.com/tdlib/telegram-bot-api) (used to download files larger than 20MB). If you would like to use Docker image (from 3rd party tho) you can use this(https://github.com/lukaszraczylo/tdlib-telegram-bot-api-docker)   
 1. Run
     ```bash
     docker-compose up -d --build

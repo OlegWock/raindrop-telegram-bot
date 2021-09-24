@@ -71,6 +71,10 @@ def set_logger_context_on_enter(logger: Optional[AsyncAdapter] = None, enter_exi
     return wrapper
 
 
+# This one matches against strins that contains ONLY one URL
+URL_REGEX_STRICT = r"^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$"
+# This used to find URLs in text
 URL_REGEX = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
 
 IS_DEV = os.getenv('RAINDROPBOT_DEV', 'false') == 'true'
+RUN_IN_DOCKER = os.getenv('RUN_IN_DOCKER', 'false') == 'true'

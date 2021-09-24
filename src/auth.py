@@ -19,7 +19,7 @@ class UserAuthMiddleware(BaseMiddleware):
     async def on_process_message(self, message: tgtypes.Message, data: dict):
         admin_id = int(os.getenv('ADMIN_TELEGRAM_ID', -1))
         handler = current_handler.get()
-
+        print('Got message!')
         logger.info(f'Processing message from user {message.from_user.id}')
 
         if handler and getattr(handler, 'only_for_admin', False) and admin_id != message.from_user.id:

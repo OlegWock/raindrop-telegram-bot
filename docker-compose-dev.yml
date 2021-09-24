@@ -8,6 +8,9 @@ services:
     env_file:
       - .env
     command: [ "--local", "--dir", "/srv/public"]
+    # Dev version exposes this port, production does not
+    ports:
+      - 8899:8081
     volumes:
       - ./bot_server_volume:/srv/public
 
@@ -22,6 +25,8 @@ services:
       - .env
     environment:
       - RUN_IN_DOCKER=true
+    volumes:
+      - ./bot_server_volume:/raindropiobot/public
 
   mongo:
     hostname: 'mongo'

@@ -1,18 +1,19 @@
 import asyncio
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Optional, BinaryIO
 
 import httpx
 from httpx import AsyncClient
 from pydantic import Field
 
 from db import BaseModel
-from src.utils import get_logger
+from utils import get_logger
 
 ROOT_URL = 'https://api.raindrop.io/rest'
 
 logger = get_logger('bot')
+
 
 class RaindropApi:
     @staticmethod
@@ -127,22 +128,41 @@ class _Raindrops(_ResourcesBase):
             return [Raindrop(api=self.api, **drop) for drop in js['items']]
 
 
-    async def create(self, link: str):
+    async def create(self, link: str, *, please_parse: bool = True,
+                     title: Optional[str] = None, description: Optional[str] = None) -> Optional[Raindrop]:
         async with self.api.client as client:
-            response = await client.post(f'/v1/raindrop', json={
-                'link': link,
-                'pleaseParse': {}
+            payload = {
+                'link': link
+            }
+            if please_parse:
+                payload['pleaseParse'] = {}
+            else:
+                payload['title'] = title
+                payload['excerpt'] = description
+            response = await client.post(f'/v1/raindrop', json=payload)
+            try:
+                response.raise_for_status()
+                js = response.json()
+                if js['result']:
+                    return Raindrop(api=self.api, **js['item'])
+                return None
+            except Exception as e:
+                logger.exception('Error while creating raindrop')
+                return None
+
+    async def upload_file(self, raindrop_id: int, file: BinaryIO, name: str, mime: str) -> bool:
+        async with self.api.client as client:
+            response = await client.put(f'/v1/raindrop/{raindrop_id}/file', files={
+                'file': (name, file, mime)
             })
             try:
                 response.raise_for_status()
                 return True
             except Exception as e:
-                logger.exception('Error while creating raindrop')
+                print(e)
                 return False
 
 
 class _Collections:
     def __init__(self, api_key):
         self.api_key = api_key
-
-

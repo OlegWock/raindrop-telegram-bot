@@ -4,7 +4,10 @@
 
 .env
 
+downloads
+
 mongo_volume
+bot_server_volume
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python

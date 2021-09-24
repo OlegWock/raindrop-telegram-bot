@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{title}</title>
+    <style>
+        /* We user double curly braces here because this file later will be used in Python's `format` function */
+        body {{
+            background: #f5f2d3;
+        }}
+        main {{
+            max-width: 800px;
+            margin: 0 auto;
+            color: #333;
+            font-size: 17px;
+            line-height: 1.4;
+            text-align: justify;
+            padding: 72px 16px;
+        }}
+
+        p {{
+            text-align: justify;
+            padding: 0 0 16px 0;
+            margin: 0;
+        }}
+
+        a {{
+            text-decoration: none;
+            color: #333;
+            border-bottom: 1px dashed #333;
+        }}
+
+        a:hover {{
+            color: #555;
+            border-bottom: 1px dashed #555;
+        }}
+    </style>
+</head>
+<body>
+    <main>
+        {text}
+    </main>
+</body>
+</html>
