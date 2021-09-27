@@ -414,7 +414,7 @@ class RaindropioBot:
         else:
             attachment_info = await self.bot.get_file(file_id)
             if RUN_IN_DOCKER:
-                path = attachment_info.file_path.replace('/srv/', '/raindrop/', 1)
+                path = attachment_info.file_path.replace('/srv/', '/raindropiobot/', 1)
             else:
                 path = attachment_info.file_path.replace('/srv/public/', './bot_server_volume/', 1)
             attachment_file = open(path, 'rb')
