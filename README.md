@@ -17,7 +17,7 @@ This bot requires some configuration. Basically you need to create development a
 
 > **Why not use OAuth?**
 
-Yes, we don't use OAuth because (1) I'm lazy to implement it, it's too much hustle, (2) I'm not feeling comfortable disclosing IP of my personal server. 
+Yes, this bot doesn't use OAuth because (1) it first originated as bot for personal use, so it was fine using test tokens, implementing OAuth is just too much hustle. Pull requests are welcome tho.
 
 > **Hmmm, I'm not feeling safe using this bot... Won't you steal all my data?**
 
