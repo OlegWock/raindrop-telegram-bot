@@ -29,9 +29,10 @@ logger = get_logger('bot')
 class RaindropioBot:
     def __init__(self, event_loop: asyncio.AbstractEventLoop):
         bot_token = os.getenv('BOT_TOKEN', None)
-        bot_server = TelegramAPIServer.from_base(os.getenv('BOT_SERVER_URL', 'https://api.telegram.org'))
+        bot_server_base = os.getenv('BOT_SERVER_URL', 'https://api.telegram.org')
+        bot_server = TelegramAPIServer.from_base(bot_server_base)
 
-        self.using_default_bot_server = bot_server == 'https://api.telegram.org'
+        self.using_default_bot_server = bot_server_base == 'https://api.telegram.org'
 
         if bot_token is None:
             raise ValueError("You forgot to set BOT_TOKEN variable")
@@ -408,13 +409,16 @@ class RaindropioBot:
                                            is_personal=True)
 
     async def file_id_to_bytesio(self, file_id):
-        attachment_info = await self.bot.get_file(file_id)
-        if RUN_IN_DOCKER:
-            path = attachment_info.file_path.replace('/srv/', '/raindrop/', 1)
+        if self.using_default_bot_server:
+            return await self.bot.download_file_by_id(file_id)
         else:
-            path = attachment_info.file_path.replace('/srv/public/', './bot_server_volume/', 1)
-        attachment_file = open(path, 'rb')
-        return attachment_file
+            attachment_info = await self.bot.get_file(file_id)
+            if RUN_IN_DOCKER:
+                path = attachment_info.file_path.replace('/srv/', '/raindrop/', 1)
+            else:
+                path = attachment_info.file_path.replace('/srv/public/', './bot_server_volume/', 1)
+            attachment_file = open(path, 'rb')
+            return attachment_file
 
     async def format_post(self, message: tgtypes.Message, include_forward_from: bool = True):
         text = await generate_post_pretty_html(message, include_forward_from=include_forward_from)

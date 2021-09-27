@@ -3,6 +3,7 @@ import functools
 import logging
 import os
 import random
+import re
 import threading
 from contextvars import ContextVar
 from typing import Optional, Callable, Tuple
@@ -84,21 +85,21 @@ async def generate_post_pretty_html(message: tgtypes.Message, include_forward_fr
 
         text += f'<p class="forward-from">Forwarded from: {link}</p>'
 
-    text_paragraphs = message.html_text.split('\n\n')
+    text_paragraphs = message.html_text.split('\n\n') if message.text or message.caption else []
     for p in text_paragraphs:
         text += '<p>{0}</p>'.format(p.replace("\n", "<br>"))
     return text
 
 
 def guess_title(text: str) -> str:
-    if not str:
+    if not text:
         return ''
     title_threshold = 100
     paragraph_chunks = text.split('\n')
     if len(paragraph_chunks) and len(paragraph_chunks[0]) < title_threshold:
         return paragraph_chunks[0]
 
-    sentence_chunks = text.split('\n')
+    sentence_chunks = re.split(r'[.!?]', text)
     if len(sentence_chunks) and len(sentence_chunks[0]) < title_threshold:
         return sentence_chunks[0]
 
