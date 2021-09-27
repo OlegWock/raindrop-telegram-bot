@@ -1,9 +1,9 @@
 # Raindrop.io Telegram Bot
 
 This bot allows you to:
-* Save raindrops: just forward link to bot, and they'll save it to 'Unsorted'
-* Easily share your raindrops: just type `@raindropiobot <search query>` in any chat and pick which raindrop you would like to share. You can use [advanced search operators](https://help.raindrop.io/using-search#operators) there!
-* Coming soon: save Telegram posts to Raindrop
+* Save raindrops: just send/forward link to the bot, and bot will save it to 'Unsorted'
+* Easily share your raindrops: type `@raindropiobot <search query>` in any chat and pick which raindrop you would like to share. You can use [advanced search operators](https://help.raindrop.io/using-search#operators) there!
+* Save Telegram posts to Raindrop. Just forward single or multiple messages to bot and bot will guess is it just announce with link or article itself and handle it accordingly. **We have a nice 'reading mode' for such posts!**
 
 This bot requires some configuration. Basically you need to create development app in your Raindrop.io account and share test token with bot. Bot will provide you detailed instruction, don't worry. 
 
@@ -15,17 +15,17 @@ This bot requires some configuration. Basically you need to create development a
 
 ## FAQ
 
-> Why not use OAuth?
+> **Why not use OAuth?**
 
 Yes, we don't use OAuth because (1) I'm lazy to implement it, it's too much hustle, (2) I'm not feeling comfortable disclosing IP of my personal server. 
 
-> Hmmm, I'm not feeling safe using this bot... Won't you steal all my data?
+> **Hmmm, I'm not feeling safe using this bot... Won't you steal all my data?**
 
 I won't. However, I won't provide any guarantees that your data will be more safe on my server than anywhere else. In case of [suspected] compromising you can always revoke token.
 
-> Still not feeling safe. You can deploy different code and publish here some harmless code
+> **Still not feeling safe. You can deploy different malicious code than published here**
 
-Sure. That's main point of making this bot open source. I made code as much universal as I could, so you can deploy on your own server, check 'Deployment' section below. 
+Sure. That's main point of making this bot open source. I made code as much universal as I could, so you can deploy on your own server without hustle, check 'Deployment' section below. 
 
 
 ## Deployment
@@ -33,7 +33,7 @@ Sure. That's main point of making this bot open source. I made code as much univ
 1. Create new telegram bot, enable inline mode.
 1. Create `.env` file and put your credentials (including bot token from previous step) there. You can find example in `.env.example`.
 1. Install `docker` and `docker-compose` if not already.
-1. Install [Telegram Bot server](https://github.com/tdlib/telegram-bot-api) (used to download files larger than 20MB). If you would like to use Docker image (from 3rd party tho) you can use this(https://github.com/lukaszraczylo/tdlib-telegram-bot-api-docker)   
+1. Optionally, if you would like to handle files larger than 20MB, you need to install [Telegram Bot server](https://github.com/tdlib/telegram-bot-api). It's included in docker-compose.yml, but you'll need to create your own 'Telegram app' [here](https://my.telegram.org/apps) and obtain `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`.
 1. Run
     ```bash
     docker-compose up -d --build

@@ -23,7 +23,6 @@ class RaindropApi:
                 response = await client.get(f'{ROOT_URL}/v1/user', headers={'Authorization': f'Bearer {token}'})
                 return response.status_code == 200
             except Exception as e:
-                logger.exception('Error while checking token')
                 return False
 
     def __init__(self, api_key):

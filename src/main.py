@@ -3,27 +3,27 @@ import io
 import os
 import re
 import uuid
-from pprint import pprint
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Optional, List
 
 from aiogram import Bot, Dispatcher, types as tgtypes
 from aiogram import filters
 from aiogram.dispatcher import FSMContext
 from aiogram.bot.api import TelegramAPIServer
+from aiograph import Telegraph
 from bson import ObjectId
 
 from motor import motor_asyncio
 
 from db import get_db, User, get_fsm_storage
-from auth import UserAuthMiddleware, only_for_registered, only_for_admin
+from middleware import UserAuthMiddleware, only_for_registered, only_for_admin, StackForwardedMessagesMiddleware, \
+    stack_forwarded_messages
 from raindrop_api import RaindropApi, SpecialCollectionIds, SortOrder
 from fsm import ConfigFlow, SettingsFlow
-from utils import get_logger, URL_REGEX, IS_DEV, URL_REGEX_STRICT, RUN_IN_DOCKER
+from utils import get_logger, URL_REGEX, IS_DEV, URL_REGEX_STRICT, RUN_IN_DOCKER, generate_post_pretty_html, \
+    guess_title, extract_forward_source
 
 logger = get_logger('bot')
-
-
-# logging.basicConfig(level=logging.DEBUG)
 
 
 class RaindropioBot:
@@ -40,6 +40,11 @@ class RaindropioBot:
         self.bot = Bot(token=bot_token, server=bot_server)
         self.dispatcher = Dispatcher(self.bot, storage=get_fsm_storage())
         self.db = None  # type: motor_asyncio.AsyncIOMotorDatabase
+        telegraph_token = os.getenv('TELEGRAPH_TOKEN', None)
+        if telegraph_token is not None:
+            self.telegraph = Telegraph(telegraph_token)
+        else:
+            self.telegraph = None
         with open('misc/post_template.html') as f:
             self.post_template = f.read()
 
@@ -72,6 +77,9 @@ class RaindropioBot:
                                                  is_forwarded=True)
 
         self.dispatcher.register_message_handler(self.process_message, content_types=supported_media_types)
+        self.dispatcher.register_message_handler(self.process_message,
+                                                 lambda m: any([entity.type in ['url', 'text_link']
+                                                                for entity in (m.entities or [])]))
 
         self.dispatcher.register_message_handler(self.process_link, filters.Regexp(URL_REGEX_STRICT))
 
@@ -173,12 +181,14 @@ class RaindropioBot:
                          "settings just press /settings\n\n"
 
         help_text += "**What I can do**\n" \
-                     "✔️ Forward links from this chats to Raindrop (into 'Unsorted' collection)\n" \
+                     "✔️ Save links from this chats to Raindrop (into 'Unsorted' collection). Check yourself " \
+                     "and send me any link :)\n" \
                      "✔️ Easily share your raindrops in other chats, just type `@raindropiobot <search query>` in any " \
                      "chat and pick which raindrop you would like to share. You can use all " \
                      "[advanced parameters](https://help.raindrop.io/using-search#operators) in search query.\n" \
-                     "⏳ Coming soon: save forwarded posts to Raindrop (no more 'Saved Messages' " \
-                     "cluttered with longreads)"
+                     "✔️ Save forwarded posts to Raindrop (no more 'Saved Messages' cluttered with longreads!). " \
+                     "Just forward me one of more messages and I'll try to guess is it just announce with link or " \
+                     "article itself and handle it accordingly."
 
         help_text += "\n\nPlease, note that this bot isn't affiliated with Raindrop.io and being developed and "
         help_text += f"supported on non-profit basis. You can check out source code [here]({repo_link}) and ask "
@@ -204,110 +214,173 @@ class RaindropioBot:
                                   "Is your API key still valid? You can change it in /settings")
 
     @only_for_registered
-    async def process_message(self, message: tgtypes.Message, user: User):
-        print('Got forwarded message')
-        has_supported_attachment = (message.photo is not None and len(message.photo) > 0) \
-                                   or (message.video is not None) or (message.document is not None)
-        if message.caption is not None:
-            print("Has caption")
-            text = message.caption
-            entities = message.caption_entities
-        else:
-            text = message.text or ''
-            entities = message.entities or []
+    @stack_forwarded_messages
+    async def process_message(self, message: tgtypes.Message, user: User,
+                              all_messages: Optional[List[tgtypes.Message]] = None):
 
-        has_links = any([entity.type in ['url', 'text_link'] for entity in entities])
-        links_to = None
-        all_links_have_same_url = True
-        for entity in entities:
-            if entity.type in ['url', 'text_link']:
-                if links_to is not None or links_to == entity.url:
-                    links_to = entity.url
-                else:
-                    all_links_have_same_url = False
-                    break
-
-        text_len = len(re.sub(URL_REGEX, '', text))
-
-        print('Got forwarded message. Has links:', has_links, 'has attachments', has_supported_attachment, 'len:',
-              text_len)
-
-        if not has_supported_attachment and not has_links and text_len < 100:
-            await message.reply("Hmmmm, this doesn't look like longread 🤔, I can't save this to Raindrop.\n"
-                                "If you need help just press /help")
-            return
-
+        messages = all_messages or [message]
         api = RaindropApi(user.raindrop_api_key)
 
-        if has_links and text_len < 700 and all_links_have_same_url:
-            # This is probably some kind of announce and short description for shared article
-            raindrop = await api.raindrops.create(links_to)
-            await message.reply('Saved!')
-        elif has_supported_attachment:
-            # Save file to Raindrop
-            if message.photo is not None and len(message.photo) > 0:
-                attachment = sorted(message.photo, key=lambda x: x.width, reverse=True)[0]
-                name = f'{uuid.uuid4()}.jpg'
-                mime = 'image/jpg'
-            else:
-                attachment = message.video or message.document
-                name = attachment.file_name
-                mime = attachment.mime_type
+        if len(messages) > 1:
+            result_html = ''
+            result_text = ''
+            source = None
+            for index, message in enumerate(messages):
+                if message.photo is not None and len(message.photo) > 0:
+                    if self.telegraph is not None:
+                        attachment = sorted(message.photo, key=lambda x: x.width, reverse=True)[0]
+                        name = f'{uuid.uuid4()}.jpg'
+                        mime = 'image/jpg'
+                        attachment_file = await self.file_id_to_bytesio(attachment.file_id)
+                        links = await self.telegraph.upload((name, attachment_file, mime))
+                        attachment_file.close()
+                        result_html += f'<img src="{links[0]}">'
+                    else:
+                        result_html += '[There should be picture. If you would like to display them here, please ' \
+                                       'setup Telegraf integration for Raindrop telegram bot.]'
 
-            if self.using_default_bot_server and attachment.file_size > 1024 * 1024 * 20:
-                await message.reply('Your file is too big :(\n\n'
-                                    'Telegram allows us to only download files 20MB (or less)')
-                return
+                current_source, link = await extract_forward_source(message)
 
-            if attachment.file_size > 1024 * 1024 * 100:
-                await message.reply('Your file is too big :(\n\n'
-                                    'Raindrop supports only files up to 100MB')
-                return
-
-            raindrop = await api.raindrops.create(f'http://example.com/{uuid.uuid4()}', please_parse=False,
-                                                  title='Saved from Telegram', description='')
-            if raindrop is None:
-                await message.reply('Unknown error :(')
-                return
-
-
-            if self.using_default_bot_server:
-                attachment_file = await self.bot.download_file_by_id(attachment.file_id)
-            else:
-                attachment_info = await self.bot.get_file(attachment.file_id)
-                if RUN_IN_DOCKER:
-                    path = attachment_info.file_path.replace('/srv/', '/raindrop/', 1)
+                if source != current_source:
+                    from_same_source = False
                 else:
-                    path = attachment_info.file_path.replace('/srv/public/', './bot_server_volume/', 1)
-                attachment_file = open(path, 'rb')
+                    from_same_source = True
 
-            result = await api.raindrops.upload_file(raindrop.id, attachment_file, name, mime)
-            attachment_file.close()
-            if result:
-                await message.reply('Saved!')
-            else:
-                await message.reply('Unknown error :(')
-        else:
+                source = current_source
+
+                result_html += await generate_post_pretty_html(message, include_forward_from=not from_same_source)
+                result_text += (message.text or message.caption or '') + '\n'
+
+            result_html = self.post_template.replace("{{text}}", result_html)
+            title = guess_title(result_text) or 'Saved from Telegram'
             raindrop = await api.raindrops.create(f'http://example.com/{uuid.uuid4()}', please_parse=False,
-                                                  title='Saved from Telegram', description='')
+                                                  title=title, description='')
             if raindrop is None:
                 await message.reply('Unknown error :(')
                 return
 
             html_file = io.BytesIO(
-                bytes(self.format_post(message), 'utf-8')
+                bytes(result_html, 'utf-8')
             )
             result = await api.raindrops.upload_file(raindrop.id, html_file, f'{uuid.uuid4()}.html', 'text/html')
             if result:
                 await message.reply('Saved!')
+                await self.register_bot_usage(user)
             else:
                 await message.reply('Unknown error :(')
+        else:
+            has_supported_attachment = (message.photo is not None and len(message.photo) > 0) \
+                                       or (message.video is not None) or (message.document is not None)
+            if message.caption is not None:
+                text = message.caption
+                entities = message.caption_entities
+            else:
+                text = message.text or ''
+                entities = message.entities or []
+
+            has_links = any([entity.type in ['url', 'text_link'] for entity in entities])
+            links_to = None
+            all_links_have_same_url = True
+            for entity in entities:
+                if entity.type in ['url', 'text_link']:
+                    cur_link = entity.url if entity.url is not None else entity.get_text(message.text)
+                    if links_to is None or links_to == cur_link:
+                        links_to = cur_link
+                    else:
+                        all_links_have_same_url = False
+                        break
+
+            text_len = len(re.sub(URL_REGEX, '', text))
+
+            if not has_supported_attachment and not has_links and text_len < 100:
+                await message.reply("Hmmmm, this doesn't look like longread 🤔, I can't save this to Raindrop.\n"
+                                    "If you need help just press /help")
+                return
+
+            if has_links and text_len < 700 and all_links_have_same_url:
+                # This is probably some kind of announce and short description for shared article
+                raindrop = await api.raindrops.create(links_to)
+                if not raindrop:
+                    await message.reply('Unknown error :(')
+                else:
+                    await message.reply('Saved!')
+                    await self.register_bot_usage(user)
+            elif has_supported_attachment:
+                if message.photo is not None and len(message.photo) > 0:
+                    attachment = sorted(message.photo, key=lambda x: x.width, reverse=True)[0]
+                    name = f'{uuid.uuid4()}.jpg'
+                    mime = 'image/jpg'
+                else:
+                    attachment = message.video or message.document
+                    name = attachment.file_name
+                    mime = attachment.mime_type
+
+                if self.using_default_bot_server and attachment.file_size > 1024 * 1024 * 20:
+                    await message.reply('Your file is too big :(\n\n'
+                                        'Telegram allows us to only download files 20MB (or less)')
+                    return
+
+                if attachment.file_size > 1024 * 1024 * 100:
+                    await message.reply('Your file is too big :(\n\n'
+                                        'Raindrop supports only files up to 100MB')
+                    return
+
+                title = guess_title(message.caption) or 'Saved from Telegram'
+                raindrop = await api.raindrops.create(f'http://example.com/{uuid.uuid4()}', please_parse=False,
+                                                      title=title, description='')
+                if raindrop is None:
+                    await message.reply('Unknown error :(')
+                    return
+
+
+                if self.using_default_bot_server:
+                    attachment_file = await self.bot.download_file_by_id(attachment.file_id)
+                else:
+                    attachment_file = await self.file_id_to_bytesio(attachment.file_id)
+
+                result = await api.raindrops.upload_file(raindrop.id, attachment_file, name, mime)
+                attachment_file.close()
+                if result:
+                    await message.reply('Saved!')
+                    await self.register_bot_usage(user)
+                else:
+                    await message.reply('Unknown error :(')
+            else:
+                title = guess_title(message.text) or 'Saved from Telegram'
+                raindrop = await api.raindrops.create(f'http://example.com/{uuid.uuid4()}', please_parse=False,
+                                                      title=title, description='')
+                if raindrop is None:
+                    await message.reply('Unknown error :(')
+                    return
+
+                html_file = io.BytesIO(
+                    bytes(await self.format_post(message, True), 'utf-8')
+                )
+                result = await api.raindrops.upload_file(raindrop.id, html_file, f'{uuid.uuid4()}.html', 'text/html')
+                if result:
+                    await message.reply('Saved!')
+                    await self.register_bot_usage(user)
+                else:
+                    await message.reply('Unknown error :(')
 
 
 
     @only_for_admin
     async def on_stats(self, message: tgtypes.Message):
-        await message.reply('Coming soon...')
+        total_users = await self.db[User.collection].count_documents({
+            'raindrop_api_key': {'$ne': None}
+        })
+        active_in_last_week = await self.db[User.collection].count_documents({
+            'last_used': {'$gt': datetime.utcnow() - timedelta(days=7)}
+        })
+        active_in_last_month = await self.db[User.collection].count_documents({
+            'last_used': {'$gt': datetime.utcnow() - timedelta(days=30)}
+        })
+        await message.reply('**Stats:**\n'
+                            f'Total users: {total_users}\n'
+                            f'Active in last week: {active_in_last_week}\n'
+                            f'Active in last month: {active_in_last_month}\n',
+                            parse_mode='markdown')
 
     async def on_inline_search(self, inline_query: tgtypes.InlineQuery, user: User):
         if user is None:
@@ -334,12 +407,26 @@ class RaindropioBot:
                                            cache_time=1 if IS_DEV else 300,
                                            is_personal=True)
 
-    def format_post(self, message):
-        text = ''
-        text_paragraphs = message.html_text.split('\n\n')
-        for p in text_paragraphs:
-            text += '<p>{0}</p>'.format(p.replace("\n", "<br>"))
-        return self.post_template.format(title="Saved from Telegram", text=text)
+    async def file_id_to_bytesio(self, file_id):
+        attachment_info = await self.bot.get_file(file_id)
+        if RUN_IN_DOCKER:
+            path = attachment_info.file_path.replace('/srv/', '/raindrop/', 1)
+        else:
+            path = attachment_info.file_path.replace('/srv/public/', './bot_server_volume/', 1)
+        attachment_file = open(path, 'rb')
+        return attachment_file
+
+    async def format_post(self, message: tgtypes.Message, include_forward_from: bool = True):
+        text = await generate_post_pretty_html(message, include_forward_from=include_forward_from)
+        return self.post_template.replace("{{text}}", text)
+
+    async def register_bot_usage(self, user: User):
+        user.last_used = datetime.utcnow()
+        await self.db[User.collection].update_one({
+            '_id': user.id
+        }, {
+            '$set': user.mongo()
+        })
 
     async def start(self):
         self.db = await get_db()
@@ -347,6 +434,7 @@ class RaindropioBot:
         await self.set_commands()
         self.attach_listeners()
         self.dispatcher.middleware.setup(UserAuthMiddleware(self.db))
+        self.dispatcher.middleware.setup(StackForwardedMessagesMiddleware())
         await self.dispatcher.skip_updates()
         await self.dispatcher.start_polling()
 

@@ -5,7 +5,8 @@ import os
 import random
 import threading
 from contextvars import ContextVar
-from typing import Optional, Callable
+from typing import Optional, Callable, Tuple
+from aiogram import types as tgtypes
 
 LOG_FORMAT_ASYNC = '[%(asctime)s][%(levelname)s][%(name)s][CTX %(async_context)s] %(message)s'
 LOG_FORMAT_SYNC = '[%(asctime)s][%(levelname)s][%(name)s][PID %(process)d][CTX %(threadName)s] %(message)s'
@@ -69,6 +70,65 @@ def set_logger_context_on_enter(logger: Optional[AsyncAdapter] = None, enter_exi
             return result
         return wrapped
     return wrapper
+
+
+async def generate_post_pretty_html(message: tgtypes.Message, include_forward_from: bool = True):
+    text = ''
+    if include_forward_from and message.is_forward():
+        forward_from, url = await extract_forward_source(message)
+        if url:
+            link = f'<a href="{url}" target="_blank" class="forward-source">{forward_from}</a>'
+        else:
+            link = f'<span class="forward-source">{forward_from}</span>'
+
+
+        text += f'<p class="forward-from">Forwarded from: {link}</p>'
+
+    text_paragraphs = message.html_text.split('\n\n')
+    for p in text_paragraphs:
+        text += '<p>{0}</p>'.format(p.replace("\n", "<br>"))
+    return text
+
+
+def guess_title(text: str) -> str:
+    if not str:
+        return ''
+    title_threshold = 100
+    paragraph_chunks = text.split('\n')
+    if len(paragraph_chunks) and len(paragraph_chunks[0]) < title_threshold:
+        return paragraph_chunks[0]
+
+    sentence_chunks = text.split('\n')
+    if len(sentence_chunks) and len(sentence_chunks[0]) < title_threshold:
+        return sentence_chunks[0]
+
+    return text[:60]  # optimal len
+
+
+async def extract_forward_source(message: tgtypes.Message, ) -> Tuple[str, str]:
+    if message.forward_sender_name is not None:
+        text = message.forward_sender_name
+    elif message.forward_from is not None:
+        text = message.forward_from.full_name
+    elif message.forward_from_chat is not None:
+        text = message.forward_from_chat.full_name
+    else:
+        text = ''
+
+    if message.forward_from is not None:
+        if message.forward_from.username:
+            link = f'https://t.me/{message.forward_from.username}'
+        else:
+            link = f'tg://user?id={message.forward_from.id}'
+    elif message.forward_from_chat is not None:
+        link = await message.forward_from_chat.get_url()
+    else:
+        link = ''
+
+    return text, link
+
+
+
 
 
 # This one matches against strins that contains ONLY one URL

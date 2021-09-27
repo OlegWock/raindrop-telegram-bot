@@ -1,8 +1,9 @@
 aiogram==2.15
+aiograph==0.2
 aiohttp==3.7.4.post0
 anyio==3.3.1
 async-timeout==3.0.1
-attrs==21.2.0
+attrs==19.1.0
 Babel==2.9.1
 certifi==2021.5.30
 chardet==4.0.0

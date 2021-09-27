@@ -1,4 +1,6 @@
+import asyncio
 import os
+import uuid
 
 from aiogram import types as tgtypes
 from aiogram.dispatcher.middlewares import BaseMiddleware
@@ -19,7 +21,6 @@ class UserAuthMiddleware(BaseMiddleware):
     async def on_process_message(self, message: tgtypes.Message, data: dict):
         admin_id = int(os.getenv('ADMIN_TELEGRAM_ID', -1))
         handler = current_handler.get()
-        print('Got message!')
         logger.info(f'Processing message from user {message.from_user.id}')
 
         if handler and getattr(handler, 'only_for_admin', False) and admin_id != message.from_user.id:
@@ -49,4 +50,42 @@ def only_for_registered(func):
 
 def only_for_admin(func):
     setattr(func, 'only_for_admin', True)
+    return func
+
+
+class StackForwardedMessagesMiddleware(BaseMiddleware):
+    def __init__(self, cooldown: float = 0.150):
+        super().__init__()
+        self.cooldown = cooldown
+        self.loop = asyncio.get_running_loop()
+        self.cache = {}
+
+    async def on_process_message(self, message: tgtypes.Message, data: dict):
+        handler = current_handler.get()
+        is_forward = message.is_forward()
+        stacking_enabled = handler is not None and getattr(handler, 'stack_forwarded_messages', False)
+
+        if is_forward and stacking_enabled:
+            context_id = uuid.uuid4()
+            if message.from_user.id not in self.cache:
+                self.cache[message.from_user.id] = {
+                    'messages': [],
+                    'context_id': None,
+                }
+
+            self.cache[message.from_user.id]['messages'].append(message)
+            self.cache[message.from_user.id]['context_id'] = context_id
+            await asyncio.sleep(self.cooldown)
+
+            if self.cache[message.from_user.id]['context_id'] == context_id:
+                # Not sure if order of messages is guaranteed, so better to sort them by id
+                data['all_messages'] = sorted(self.cache[message.from_user.id]['messages'],
+                                              key=lambda m: m.message_id)
+                del self.cache[message.from_user.id]
+            else:
+                raise CancelHandler()
+
+
+def stack_forwarded_messages(func):
+    setattr(func, 'stack_forwarded_messages', True)
     return func

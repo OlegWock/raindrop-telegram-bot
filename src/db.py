@@ -96,6 +96,7 @@ class User(MongoModel):
     id: OID = Field()
     telegram_id: int = Field()
     raindrop_api_key: Optional[str] = Field(None)
+    last_used: Optional[datetime] = Field(None)
 
     @classmethod
     @property
