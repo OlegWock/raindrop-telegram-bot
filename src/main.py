@@ -281,15 +281,32 @@ class RaindropioBot:
 
             has_links = any([entity.type in ['url', 'text_link'] for entity in entities])
             links_to = None
+            backup_link = None
             all_links_have_same_url = True
             for entity in entities:
                 if entity.type in ['url', 'text_link']:
-                    cur_link = entity.url if entity.url is not None else entity.get_text(message.text)
+                    entity_text = entity.get_text(message.text)
+                    if entity.url is not None:
+                        # Handle 'invisible' links often used to attach custom picture to post and too much short links
+                        # which is unlikely to be right one
+                        if re.match(r"^[\s\u200b\u200c]+$", entity_text) or len(entity_text) < 4:
+                            backup_link = entity.url
+                            continue
+
+                        cur_link = entity.url
+                    else:
+                        cur_link = entity_text
+
+
                     if links_to is None or links_to == cur_link:
                         links_to = cur_link
                     else:
                         all_links_have_same_url = False
                         break
+
+            if links_to is None:
+                # Turns out there are only links we thought were irrelevant
+                links_to = backup_link
 
             text_len = len(re.sub(URL_REGEX, '', text))
 
