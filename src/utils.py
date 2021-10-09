@@ -87,7 +87,10 @@ async def generate_post_pretty_html(message: tgtypes.Message, include_forward_fr
 
     text_paragraphs = message.html_text.split('\n\n') if message.text or message.caption else []
     for p in text_paragraphs:
-        text += '<p>{0}</p>'.format(p.replace("\n", "<br>"))
+        url_regex = r"(?<!href=[\"'])(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,16}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))"
+        p = re.sub(url_regex, r'<a href="\g<1>" rel="nofollow" target="_blank">\g<1></a>', p)
+        p = p.replace("\n", "<br>")
+        text += '<p>{0}</p>'.format(p)
     return text
 
 
