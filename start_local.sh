@@ -1,3 +1,4 @@
+source .venv/bin/activate
 # Local .env with secrets
 if [ -f .env ]; then
     # Load Environment Variables
