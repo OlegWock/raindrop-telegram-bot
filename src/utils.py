@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import io
 import logging
 import os
 import random
@@ -8,6 +9,8 @@ import threading
 from contextvars import ContextVar
 from typing import Optional, Callable, Tuple
 from aiogram import types as tgtypes
+import weasyprint
+import weasyprint.text.fonts
 
 LOG_FORMAT_ASYNC = '[%(asctime)s][%(levelname)s][%(name)s][CTX %(async_context)s] %(message)s'
 LOG_FORMAT_SYNC = '[%(asctime)s][%(levelname)s][%(name)s][PID %(process)d][CTX %(threadName)s] %(message)s'
@@ -93,6 +96,12 @@ async def generate_post_pretty_html(message: tgtypes.Message, include_forward_fr
         text += '<p>{0}</p>'.format(p)
     return text
 
+def generate_pdf_from_html(html: str, css: str) -> io.BytesIO:
+    font_config = weasyprint.text.fonts.FontConfiguration()
+    styles = weasyprint.CSS(string=css)
+    return io.BytesIO(
+        weasyprint.HTML(string=html).write_pdf(stylesheets=[styles, weasyprint.CSS(string='@page { size: B5; margin: 0; box-decoration-break: clone; padding: 8mm; }')], font_config=font_config)
+    )
 
 def guess_title(text: str) -> str:
     if not text:
