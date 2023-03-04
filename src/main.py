@@ -12,6 +12,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.bot.api import TelegramAPIServer
 from aiograph import Telegraph
 from bson import ObjectId
+from htmlshare_api import upload_html
 
 from motor import motor_asyncio
 
@@ -20,7 +21,7 @@ from middleware import UserAuthMiddleware, only_for_registered, only_for_admin, 
     stack_forwarded_messages
 from raindrop_api import RaindropApi, SpecialCollectionIds, SortOrder
 from fsm import ConfigFlow, SettingsFlow
-from utils import generate_pdf_from_html, get_logger, URL_REGEX, IS_DEV, URL_REGEX_STRICT, RUN_IN_DOCKER, generate_post_pretty_html, \
+from utils import get_logger, URL_REGEX, IS_DEV, URL_REGEX_STRICT, RUN_IN_DOCKER, generate_post_pretty_html, \
     guess_title, extract_forward_source
 
 logger = get_logger('bot')
@@ -48,9 +49,6 @@ class RaindropioBot:
             self.telegraph = None
         with open('misc/post_template.html') as f:
             self.post_template = f.read()
-
-        with open('misc/styles.css') as f:
-            self.template_css = f.read()
 
     def attach_listeners(self):
         self.register_command_and_text_handlers(self.on_help, 'help')
@@ -255,22 +253,21 @@ class RaindropioBot:
                 result_html += await generate_post_pretty_html(message, include_forward_from=not from_same_source)
                 result_text += (message.text or message.caption or '') + '\n'
 
-            result_html = self.post_template.replace("{{text}}", result_html).replace("{{mode}}", "dark").replace("{{font}}", "sans-serif")
+            result_html = self.post_template.replace("{{text}}", result_html)
             title = guess_title(result_text) or 'Saved from Telegram'
-            raindrop = await api.raindrops.create(f'http://example.com/{uuid.uuid4()}', please_parse=False,
-                                                  title=title, description='')
+            html_uploaded_url = await upload_html(result_html)
+            if html_uploaded_url is None:
+                await message.reply('Unknown error :(')
+                return
+            raindrop = await api.raindrops.create(html_uploaded_url, please_parse=True, title=title)
+            
             if raindrop is None:
                 await message.reply('Unknown error :(')
                 return
 
-            pdf_file = generate_pdf_from_html(await self.format_post(message, True), self.template_css)
-            result = await api.raindrops.upload_file(raindrop.id, pdf_file, f'{uuid.uuid4()}.pdf', 'application/pdf')
+            await message.reply('Saved!')
+            await self.register_bot_usage(user)
 
-            if result:
-                await message.reply('Saved!')
-                await self.register_bot_usage(user)
-            else:
-                await message.reply('Unknown error :(')
         else:
             has_supported_attachment = (message.photo is not None and len(message.photo) > 0) \
                                        or (message.video is not None) or (message.document is not None)
@@ -367,19 +364,18 @@ class RaindropioBot:
                     await message.reply('Unknown error :(')
             else:
                 title = guess_title(message.text) or 'Saved from Telegram'
-                raindrop = await api.raindrops.create(f'http://example.com/{uuid.uuid4()}', please_parse=False,
-                                                      title=title, description='')
+                html = await self.format_post(message, True)
+                html_uploaded_url = await upload_html(html)
+                if html_uploaded_url is None:
+                    await message.reply('Unknown error :(')
+                    return
+                raindrop = await api.raindrops.create(html_uploaded_url, please_parse=True, title=title)
                 if raindrop is None:
                     await message.reply('Unknown error :(')
                     return
 
-                pdf_file = generate_pdf_from_html(await self.format_post(message, True), self.template_css)
-                result = await api.raindrops.upload_file(raindrop.id, pdf_file, f'{uuid.uuid4()}.pdf', 'application/pdf')
-                if result:
-                    await message.reply('Saved!')
-                    await self.register_bot_usage(user)
-                else:
-                    await message.reply('Unknown error :(')
+                await message.reply('Saved!')
+                await self.register_bot_usage(user)
 
 
 
@@ -439,7 +435,7 @@ class RaindropioBot:
 
     async def format_post(self, message: tgtypes.Message, include_forward_from: bool = True):
         text = await generate_post_pretty_html(message, include_forward_from=include_forward_from)
-        return self.post_template.replace("{{text}}", text).replace("{{mode}}", "dark").replace("{{font}}", "sans-serif")
+        return self.post_template.replace("{{text}}", text)
 
     async def register_bot_usage(self, user: User):
         user.last_used = datetime.utcnow()

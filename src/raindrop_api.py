@@ -158,8 +158,7 @@ class _Raindrops(_ResourcesBase):
                 response.raise_for_status()
                 return True
             except Exception as e:
-                logger.exception('Error while uploading file')
-                logger.error(response.text)
+                print(e)
                 return False
 
 

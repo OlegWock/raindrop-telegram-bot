@@ -14,7 +14,7 @@ services:
   bot:
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./Dockerfile-bot
     depends_on:
       - "mongo"
     restart: unless-stopped
@@ -33,3 +33,17 @@ services:
       - .env
     volumes:
       - ./mongo_volume:/data/db
+
+  htmlshare:
+    build:
+      context: .
+      dockerfile: Dockerfile-htmlshare
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - RUN_IN_DOCKER=true
+    volumes:
+      - ./htmlshare_volume:/app_data
+    ports:
+      - 8362:80

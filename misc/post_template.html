@@ -7,7 +7,163 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Ubuntu:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            --bg-color: #f5f2d3;
+            --text-color: #333333;
+            --link-hover-color: #555555;
+            background: var(--bg-color);
+            font-family: 'Playfair Display', serif;
+        }
+
+        body.sans-serif {
+            font-family: 'Ubuntu', sans-serif;
+        }
+
+        body.dark {
+            --bg-color: #081e2b;
+            --text-color: #d0cdc9;
+            --link-hover-color: #e4ddd3;
+        }
+        main {
+            max-width: 800px;
+            margin: 0 auto;
+            color: var(--text-color);
+            font-size: 17px;
+            line-height: 1.6;
+            text-align: justify;
+            padding: 72px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        p {
+            text-align: justify;
+            padding: 0 0 16px 0;
+            margin: 0;
+            width: 100%;
+        }
+
+        a {
+            text-decoration: none;
+            color: var(--text-color);
+            border-bottom: 1px dashed var(--text-color);
+        }
+
+        a:hover {
+            color: var(--link-hover-color);
+            border-bottom: 1px dashed var(--link-hover-color);
+        }
+
+        pre {
+            overflow: auto;
+            padding: 0 0 16px 0;
+            margin: 0;
+            width: 100%;
+        }
+
+        img {
+            width: 100%;
+            padding: 0 0 16px 0;
+        }
+
+        img.expanded {
+            width: auto;
+        }
+
+        .toggles {
+            align-self: flex-end;
+            margin-bottom: 48px;
+            display: flex;
+
+        }
+
+        .toggle {
+            border-bottom: 1px dashed var(--text-color);
+            cursor: pointer;
+            margin-bottom: 4px;
+        }
+
+        .forward-from {
+            font-style: italic;
+            text-align: center;
+        }
+
+        .forward-source {
+            font-weight: 700;
+        }
+
+        .toggle:hover {
+            color: var(--link-hover-color);
+            border-bottom: 1px dashed var(--link-hover-color);
+        }
+
+        *::-webkit-scrollbar {
+            -webkit-appearance: none;
+        }
+
+        *::-webkit-scrollbar:vertical {
+            width: 7px;
+        }
+
+        *::-webkit-scrollbar:horizontal {
+            height: 7px;
+        }
+
+        *::-webkit-scrollbar-thumb {
+            border-radius: 8px;
+            border: 2px solid var(--bg-color); /* should match background, can't be transparent */
+            background-color: var(--text-color);
+        }
+
+        *::-webkit-scrollbar-track {
+            background-color: var(--bg-color);
+            border-radius: 8px;
+        }
+    </style>
 </head>
-<body class="{{mode}} {{font}}">
-    {{text}}
+<body>
+    <main>
+        <div class="toggles">
+            <div class="toggle" id="toggle-dark-mode">Toggle dark mode</div>
+            &nbsp;&bull;&nbsp;
+            <div class="toggle" id="toggle-font-type">Toggle font family</div>
+        </div>
+
+        {{text}}
+    </main>
+    <script>
+        // Temporary disable this
+        // document.querySelectorAll('img').forEach((item) => {
+        //     item.addEventListener('click', (event) => {
+        //         event.target.classList.toggle('expanded');
+        //     });
+        // });
+
+        document.querySelector('#toggle-dark-mode').addEventListener('click', (event) => {
+            document.body.classList.toggle('dark');
+        });
+
+        document.querySelector('#toggle-font-type').addEventListener('click', (event) => {
+            document.body.classList.toggle('sans-serif');
+        });
+
+        if (window.matchMedia) {
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.body.classList.add('dark');
+            }
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                if (e.matches) {
+                    document.body.classList.add('dark');
+                } else {
+                    document.body.classList.remove('dark');
+                }
+            });
+        }
+
+
+
+    </script>
+</body>
 </html>
