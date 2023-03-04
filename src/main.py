@@ -259,7 +259,7 @@ class RaindropioBot:
             if html_uploaded_url is None:
                 await message.reply('Unknown error :(')
                 return
-            raindrop = await api.raindrops.create(html_uploaded_url, please_parse=True, title=title)
+            raindrop = await api.raindrops.create(html_uploaded_url, please_parse=False, title=title, description='')
             
             if raindrop is None:
                 await message.reply('Unknown error :(')
@@ -369,7 +369,7 @@ class RaindropioBot:
                 if html_uploaded_url is None:
                     await message.reply('Unknown error :(')
                     return
-                raindrop = await api.raindrops.create(html_uploaded_url, please_parse=True, title=title)
+                raindrop = await api.raindrops.create(html_uploaded_url, please_parse=False, title=title, description='')
                 if raindrop is None:
                     await message.reply('Unknown error :(')
                     return
