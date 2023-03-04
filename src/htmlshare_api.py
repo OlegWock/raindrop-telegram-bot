@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from utils import get_logger
 
 
-HTMLSHARE_ROOT_URL = os.getenv('HTMLSHARE_BASE_URL', 'https://raindropio-html-share.sinja.io/')
+HTMLSHARE_ROOT_URL = os.getenv('HTMLSHARE_BASE_URL', 'https://raindropio-html-share.sinja.io')
 HTMLSHARE_PASSWORD = os.getenv('HTMLSHARE_PASSWORD', '')
 
 logger = get_logger('bot')

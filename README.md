@@ -11,17 +11,6 @@ This bot requires some configuration. Basically you need to create development a
 
 ---
 
-## Update about reading mode
-
-If you came here from bot, you might noticed that saving longreads was broken for long time. It's because Raindrop.io doesn't allow to upload HTML files now. And this bot used html files heavily. I just updated bot to convert longreads to PDF instead of HTML. This is a lot less convenient, but at least it's something that works. 
-
-I have plans to make small web app which will allow to upload and store HTML files there and thus return to using html files for bookmarks. If you either:
-
-a. know web site that does this already (so, like pastebin for html)
-b. willing to help with development
-c. have other ideas how to implement this
-
-Please contact me throught issues or discussions in this repo.
 
 ## FAQ
 
