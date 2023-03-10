@@ -284,7 +284,7 @@ class RaindropioBot:
             all_links_have_same_url = True
             for entity in entities:
                 if entity.type in ['url', 'text_link']:
-                    entity_text = entity.get_text(message.text)
+                    entity_text = entity.get_text(message.text or message.caption)
                     if entity.url is not None:
                         # Handle 'invisible' links often used to attach custom picture to post and too much short links
                         # which is unlikely to be right one
@@ -457,6 +457,8 @@ class RaindropioBot:
 
 
 if __name__ == '__main__':
+    logger.info("Starting bot. Getting event loop")
     loop = asyncio.get_event_loop()
+    logger.info("Obtained event loop")
     bot = RaindropioBot(loop)
     loop.run_until_complete(bot.start())
