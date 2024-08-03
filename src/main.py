@@ -86,6 +86,7 @@ class RaindropioBot:
         self.dispatcher.register_message_handler(self.process_link, filters.Regexp(URL_REGEX_STRICT))
 
         self.register_command_and_text_handlers(self.on_stats, 'stats')
+        self.register_command_and_text_handlers(self.on_broadcast_shutdown, 'broadcast_shutdown')
 
         self.dispatcher.register_inline_handler(self.on_inline_search)
 
@@ -395,6 +396,21 @@ class RaindropioBot:
                             f'Active in last week: {active_in_last_week}\n'
                             f'Active in last month: {active_in_last_month}\n',
                             parse_mode='markdown')
+    
+    @only_for_admin
+    async def on_broadcast_shutdown(self, message: tgtypes.Message):
+        all_users = await User.from_mongo_cursor(self.db[User.collection].find({
+            'raindrop_api_key': {'$ne': None}
+        }))
+        for user in all_users:
+            try:
+                logger.info(f'Sending message to {user.telegram_id}')
+                await self.bot.send_message(user.telegram_id, DEPRECATION_NOTICE, parse_mode='markdown')
+            except Exception as e:
+                logger.exception(f'Error sending message {e}')
+            else:
+                logger.info(f'Message sent to {user.telegram_id}')
+            await asyncio.sleep(.05)
 
     async def on_inline_search(self, inline_query: tgtypes.InlineQuery, user: User):
         if user is None:
@@ -455,6 +471,14 @@ class RaindropioBot:
         await self.dispatcher.skip_updates()
         await self.dispatcher.start_polling()
 
+
+DEPRECATION_NOTICE = """
+Hey! Developer of Raindrop bot here. I'm currently restructuring and optimizing my cloud infrastructure, and as part of this, I'm going to delete the server where this bot is hosted. I don't use it anymore, so I don't plan to redeploy it on another server.
+
+What does this mean for you? You won't be able to save links or Telegram posts using this bot. If you have any Telegram posts saved in Raindrop, they will be unavailable. You can find those by searching for `raindropio-html-share.sinja.io` in the Raindrop app. If there is something important, make sure to make a copy. Other bookmarks created using this bot won't be affected.
+
+Bot will continue working, at least until the 21st of August. After that, it will be disabled.
+""".strip()
 
 if __name__ == '__main__':
     logger.info("Starting bot. Getting event loop")
