@@ -7,8 +7,6 @@ This bot allows you to:
 
 This bot requires some configuration. Basically you need to create development app in your Raindrop.io account and share test token with bot. Bot will provide you detailed instruction, don't worry. 
 
-<h3 style="text-align: center;"><a href="https://t.me/raindropiobot">Try yourself</a></h3>
-
 ---
 
 
