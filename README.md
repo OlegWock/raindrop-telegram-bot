@@ -1,3 +1,6 @@
+> [!IMPORTANT]  
+> This bot was discontinued and will stop working at 21 August 2024. You still can deploy your copy using the source code, but there won't be hosted version anymore.
+
 # Raindrop.io Telegram Bot
 
 This bot allows you to:
